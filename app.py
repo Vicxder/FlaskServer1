@@ -1,6 +1,7 @@
 from flask import Flask, render_template
 from flask_socketio import SocketIO
 from flask_cors import CORS
+import os
 
 app = Flask(__name__)
 CORS(app)  # Habilitar CORS para cualquier origen
@@ -23,4 +24,5 @@ def handle_command(data):
     print(f"Comando recibido: {data}")
 
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=5000, debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    socketio.run(app, host="0.0.0.0", port=port, debug=True)
