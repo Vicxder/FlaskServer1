@@ -1,38 +1,52 @@
-from flask import Flask, request, jsonify, render_template
-from flask_socketio import SocketIO, emit
+from flask import Flask, request, send_from_directory
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit
 
+# Inicializar la aplicación Flask
 app = Flask(__name__)
-CORS(app)  # Habilita CORS para todas las rutas
+
+# Configuración de CORS
+CORS(app, resources={r"/*": {"origins": "*"}})
+
+# Configuración de SocketIO con soporte para WebSockets
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Ruta para la página HTML (opcional, si sirves el HTML desde Flask)
-@app.route('/')
+# Ruta para servir la página index.html
+@app.route("/")
 def index():
-    return render_template('index.html')
+    return send_from_directory(".", "index.html")  # Sirve index.html desde el directorio actual
 
-# Ruta para manejar comandos enviados vía HTTP (fallback)
-@app.route('/control', methods=['POST'])
-def control():
-    data = request.get_json()
-    if not data or 'command' not in data:
-        return jsonify({'error': 'Comando inválido'}), 400
+# Rutas para otros archivos estáticos (CSS, JS, imágenes)
+@app.route("/<path:path>")
+def serve_static_file(path):
+    return send_from_directory(".", path)
 
-    command = data['command']
-    print(f"Comando recibido vía HTTP: {command}")
-    return jsonify({'message': f"Comando {command} recibido correctamente"}), 200
+# Eventos de WebSocket
+@socketio.on("connect")
+def handle_connect():
+    """
+    Manejo de conexión de un cliente.
+    """
+    print("Cliente conectado.")
+    emit("server_response", {"message": "Conexión establecida con el servidor Flask."})
 
-# WebSocket para manejar comandos en tiempo real
-@socketio.on('message')
-def handle_message(data):
-    print(f"Mensaje recibido vía WebSocket: {data}")
-    emit('response', {'message': f"Comando {data['command']} recibido correctamente"}, broadcast=True)
+@socketio.on("disconnect")
+def handle_disconnect():
+    """
+    Manejo de desconexión de un cliente.
+    """
+    print("Cliente desconectado.")
 
-# Ruta para un feed de video simulado
-@app.route('/video_feed')
-def video_feed():
-    # Simula una URL de feed de video; reemplaza con tu fuente real
-    return jsonify({'message': 'Simulación de transmisión de video activa'})
+@socketio.on("command")
+def handle_command(data):
+    """
+    Manejo de comandos enviados por el cliente.
+    """
+    print(f"Comando recibido: {data}")
+    # Enviar una respuesta al cliente
+    emit("server_response", {"message": f"Comando recibido: {data}"}, broadcast=True)
 
-if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000)
+# Inicializar el servidor
+if __name__ == "__main__":
+    # Escuchar en el puerto 5000 o en el puerto proporcionado por la plataforma de despliegue
+    socketio.run(app, host="0.0.0.0", port=5000)
